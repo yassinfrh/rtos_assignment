@@ -1,7 +1,5 @@
 // compile with: g++ -lpthread <sourcename> -o <executablename>
 
-// This exercise shows how to schedule threads with Rate Monotonic
-
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
