@@ -31,6 +31,15 @@ void *task4(void *);
 pthread_mutex_t mutex_task_4 = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_task_4 = PTHREAD_COND_INITIALIZER;
 
+// IMPORTANT: uncomment the following lines for using priority ceiling mutex
+/*
+// declaration of mutex
+pthread_mutex_t mutex_sem = PTHREAD_MUTEX_INITIALIZER;
+
+// mutex attribute
+pthread_mutexattr_t mutexattr_sem;
+*/
+
 #define INNERLOOP 1000
 #define OUTERLOOP 2000
 
@@ -82,6 +91,21 @@ int main()
         return -1;
     }
 
+    // IMPORTANT: uncomment the following lines for using priority ceiling mutex
+    /*
+    // initialize mutex attributes
+    pthread_mutexattr_init(&mutexattr_sem);
+
+    // set mutex protocol to priority ceiling
+    pthread_mutexattr_setprotocol(&mutexattr_sem, PTHREAD_PRIO_PROTECT);
+
+    // set the priority ceiling of the mutex to the maximum priority
+    pthread_mutexattr_setprioceiling(&mutexattr_sem, priomin.sched_priority + NTASKS);
+
+    // initialize the mutex
+    pthread_mutex_init(&mutex_sem, &mutexattr_sem);
+    */
+
     // string to be written to the file
     char str[100];
 
@@ -128,7 +152,6 @@ int main()
 
     // compute Ulub
     double Ulub = NPERIODICTASKS * (pow(2.0, (1.0 / NPERIODICTASKS)) - 1);
-
 
     // check the sufficient conditions: if they are not satisfied, exit
     if (U > Ulub)
@@ -228,6 +251,11 @@ int main()
     printf("End of the program\n");
     fflush(stdout);
 
+    // IMPORTANT: uncomment the following lines to use priority ceiling mutex
+    /*
+    // destroy the mutex
+    pthread_mutex_destroy(&mutex_sem);
+    */
     exit(0);
 }
 
@@ -305,13 +333,27 @@ void *task1(void *ptr)
     int i = 0;
     for (i = 0; i < 100; i++)
     {
+        // IMPORTANT: uncomment the following lines to use priority ceiling mutex
+        /*
+        // take the mutex
+        pthread_mutex_lock(&mutex_sem);
+        */
+
         // execute application specific code
         if (task1_code())
         {
             printf("task1_code failed\n");
             fflush(stdout);
+            // release the mutex
+            //pthread_mutex_unlock(&mutex_sem);
             return NULL;
         }
+
+        // IMPORTANT: uncomment the following lines to use priority ceiling mutex
+        /*
+        // release the mutex
+        pthread_mutex_unlock(&mutex_sem);
+        */
 
         // sleep until the end of the current period (which is also the start of the
         // new one
@@ -416,13 +458,27 @@ void *task2(void *ptr)
     int i = 0;
     for (i = 0; i < 60; i++)
     {
+        // IMPORTANT: uncomment the following lines to use priority ceiling mutex
+        /*
+        // take the mutex
+        pthread_mutex_lock(&mutex_sem);
+        */
+
         // see task 1
         if (task2_code())
         {
             printf("task2_code failed\n");
             fflush(stdout);
+            // release the mutex
+            //pthread_mutex_unlock(&mutex_sem);
             return NULL;
         }
+
+        // IMPORTANT: uncomment the following lines to use priority ceiling mutex
+        /*
+        // release the mutex
+        pthread_mutex_unlock(&mutex_sem);
+        */
 
         clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &next_arrival_time[1], NULL);
         long int next_arrival_nanoseconds = next_arrival_time[1].tv_nsec + periods[1];
@@ -501,13 +557,27 @@ void *task3(void *ptr)
     int i = 0;
     for (i = 0; i < 40; i++)
     {
+        // IMPORTANT: uncomment the following lines to use priority ceiling mutex
+        /*
+        // take the mutex
+        pthread_mutex_lock(&mutex_sem);
+        */
+
         // see task 1
         if (task3_code())
         {
             printf("task3_code failed\n");
             fflush(stdout);
+            // release the mutex
+            //pthread_mutex_unlock(&mutex_sem);
             return NULL;
         }
+
+        // IMPORTANT: uncomment the following lines to use priority ceiling mutex
+        /*
+        // release the mutex
+        pthread_mutex_unlock(&mutex_sem);
+        */
 
         clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &next_arrival_time[2], NULL);
         long int next_arrival_nanoseconds = next_arrival_time[2].tv_nsec + periods[2];
@@ -587,12 +657,27 @@ void *task4(void *ptr)
     {
         // wait for the proper condition to be signaled
         pthread_cond_wait(&cond_task_4, &mutex_task_4);
+
+        // IMPORTANT: uncomment the following lines to use priority ceiling mutex
+        /*
+        // take the mutex
+        pthread_mutex_lock(&mutex_sem);
+        */
+
         // execute the task code
         if (task4_code())
         {
             printf("task4_code failed\n");
             fflush(stdout);
+            // release the mutex
+            //pthread_mutex_unlock(&mutex_sem);
             return NULL;
         }
+
+        // IMPORTANT: uncomment the following lines to use priority ceiling mutex
+        /*
+        // release the mutex
+        pthread_mutex_unlock(&mutex_sem);
+        */
     }
 }
