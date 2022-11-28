@@ -7,14 +7,16 @@
 #include <unistd.h>
 #include <math.h>
 #include <sys/types.h>
+#include <string.h>
+#include <fcntl.h>
 
 // code of periodic tasks
-void task1_code();
-void task2_code();
-void task3_code();
+int task1_code();
+int task2_code();
+int task3_code();
 
 // code of aperiodic task
-void task4_code();
+int task4_code();
 
 // characteristic function of the thread, only for timing and synchronization
 // periodic tasks
@@ -72,9 +74,19 @@ int main()
     if (getuid() == 0)
         pthread_setschedparam(pthread_self(), SCHED_FIFO, &priomax);
 
+    // open the special file
+    int fd;
+    if ((fd = open("/dev/my", O_RDWR)) == -1)
+    {
+        perror("Error opening file");
+        return -1;
+    }
+
+    // string to be written to the file
+    char str[100];
+
     // execute all tasks in standalone modality in order to measure execution times
     // Use the computed values to update the worst case execution time of each task.
-
     int i;
     for (i = 0; i < NTASKS; i++)
     {
@@ -102,7 +114,13 @@ int main()
         // different conditions, in order to have reliable values
         WCET[i] = 1000000000 * (time_2.tv_sec - time_1.tv_sec) + (time_2.tv_nsec - time_1.tv_nsec);
 
-        printf("\nWorst Case Execution Time %d=%f \n", i, WCET[i]);
+        // write the WCET in the special file
+        sprintf(str, "Worst Case Execution Time %d=%f", i, WCET[i]);
+        if (write(fd, str, strlen(str) + 1) != strlen(str) + 1)
+        {
+            perror("Error writing file");
+            return -1;
+        }
     }
 
     // compute U
@@ -111,14 +129,27 @@ int main()
     // compute Ulub
     double Ulub = NPERIODICTASKS * (pow(2.0, (1.0 / NPERIODICTASKS)) - 1);
 
+
     // check the sufficient conditions: if they are not satisfied, exit
     if (U > Ulub)
     {
-        printf("\n U=%lf Ulub=%lf Non schedulable Task Set", U, Ulub);
+        sprintf(str, "U=%lf Ulub=%lf Non schedulable Task Set", U, Ulub);
+        if (write(fd, str, strlen(str) + 1) != strlen(str) + 1)
+        {
+            perror("Error writing file");
+            return -1;
+        }
         return (-1);
     }
-    printf("\n U=%lf Ulub=%lf Scheduable Task Set", U, Ulub);
-    fflush(stdout);
+    sprintf(str, "U=%lf Ulub=%lf Schedulable Task Set", U, Ulub);
+    if (write(fd, str, strlen(str) + 1) != strlen(str) + 1)
+    {
+        perror("Error writing file");
+        return -1;
+    }
+
+    // close the special file
+    close(fd);
 
     sleep(5);
 
@@ -180,6 +211,9 @@ int main()
         next_arrival_time[i].tv_sec = time_1.tv_sec + next_arrival_nanoseconds / 1000000000;
     }
 
+    printf("Starting scheduler\n");
+    fflush(stdout);
+
     // create all threads(pthread_create)
     iret[0] = pthread_create(&(thread_id[0]), &(attributes[0]), task1, NULL);
     iret[1] = pthread_create(&(thread_id[1]), &(attributes[1]), task2, NULL);
@@ -191,15 +225,41 @@ int main()
     pthread_join(thread_id[1], NULL);
     pthread_join(thread_id[2], NULL);
 
+    printf("End of the program\n");
+    fflush(stdout);
+
     exit(0);
 }
 
 // application specific task_1 code
-void task1_code()
+int task1_code()
 {
-    // print the id of the current task
-    printf(" 1[ ");
-    fflush(stdout);
+    // strings to write
+    const char *str_i;
+    const char *str_f;
+
+    // strings length
+    int len_i, len_f;
+
+    // file descriptor
+    int fd;
+
+    // open the special file
+    if ((fd = open("/dev/my", O_RDWR)) == -1)
+    {
+        perror("open failed");
+        return -1;
+    }
+    // write on the special file the id of the current task
+    str_i = " 1[ ";
+    len_i = strlen(str_i) + 1;
+    if (write(fd, str_i, len_i) != len_i)
+    {
+        perror("write failed");
+        return -1;
+    }
+    // close the special file
+    close(fd);
 
     // this double loop with random computation is only required to waste time
     int i, j;
@@ -212,9 +272,24 @@ void task1_code()
         }
     }
 
-    // print the id of the current task
-    printf(" ]1 ");
-    fflush(stdout);
+    /// open the special file
+    if ((fd = open("/dev/my", O_RDWR)) == -1)
+    {
+        perror("open failed");
+        return -1;
+    }
+    // write on the special file the id of the current task
+    str_f = " ]1 ";
+    len_f = strlen(str_f) + 1;
+    if (write(fd, str_f, len_f) != len_f)
+    {
+        perror("write failed");
+        return -1;
+    }
+    // close the special file
+    close(fd);
+
+    return 0;
 }
 
 // thread code for task_1 (used only for temporization)
@@ -231,7 +306,12 @@ void *task1(void *ptr)
     for (i = 0; i < 100; i++)
     {
         // execute application specific code
-        task1_code();
+        if (task1_code())
+        {
+            printf("task1_code failed\n");
+            fflush(stdout);
+            return NULL;
+        }
 
         // sleep until the end of the current period (which is also the start of the
         // new one
@@ -245,14 +325,38 @@ void *task1(void *ptr)
     }
 }
 
-void task2_code()
+int task2_code()
 {
-    // print the id of the current task
-    printf(" 2[ ");
-    fflush(stdout);
+    // strings to write
+    const char *str_i;
+    const char *str_f;
+
+    // strings length
+    int len_i, len_f;
+
+    // file descriptor
+    int fd;
+
+    // open the special file
+    if ((fd = open("/dev/my", O_RDWR)) == -1)
+    {
+        perror("open failed");
+        return -1;
+    }
+    // write on the special file the id of the current task
+    str_i = " 2[ ";
+    len_i = strlen(str_i) + 1;
+    if (write(fd, str_i, len_i) != len_i)
+    {
+        perror("write failed");
+        return -1;
+    }
+    // close the special file
+    close(fd);
+
     int i, j;
     double uno;
-    for (i = 0; i < OUTERLOOP*4; i++)
+    for (i = 0; i < OUTERLOOP * 2; i++)
     {
         for (j = 0; j < INNERLOOP; j++)
         {
@@ -260,12 +364,23 @@ void task2_code()
         }
     }
 
+    /// open the special file
+    if ((fd = open("/dev/my", O_RDWR)) == -1)
+    {
+        perror("open failed");
+        return -1;
+    }
     // when the random variable uno=0, then aperiodic task 4 must
     // be executed
     if (uno == 0)
     {
-        printf(":ex(4)");
-        fflush(stdout);
+        const char *str_4 = ":ex(4)";
+        int len_4 = strlen(str_4) + 1;
+        if (write(fd, str_4, len_4) != len_4)
+        {
+            perror("write failed");
+            return -1;
+        }
         // In theory, we should protect conditions using mutexes. However, in a real-time application, something undesirable may happen.
         // Indeed, when task2 takes the mutex and sends the condition, task4 is executed and is given the mutex by the kernel. Which means
         // that task2 (higher priority) would be blocked waiting for task4 to finish (lower priority). This is of course unacceptable,
@@ -276,9 +391,18 @@ void task2_code()
         //      		pthread_mutex_unlock(&mutex_task_4);
     }
 
-    // print the id of the current task
-    printf(" ]2 ");
-    fflush(stdout);
+    // write on the special file the id of the current task
+    str_f = " ]2 ";
+    len_f = strlen(str_f) + 1;
+    if (write(fd, str_f, len_f) != len_f)
+    {
+        perror("write failed");
+        return -1;
+    }
+    // close the special file
+    close(fd);
+
+    return 0;
 }
 
 void *task2(void *ptr)
@@ -293,7 +417,12 @@ void *task2(void *ptr)
     for (i = 0; i < 60; i++)
     {
         // see task 1
-        task2_code();
+        if (task2_code())
+        {
+            printf("task2_code failed\n");
+            fflush(stdout);
+            return NULL;
+        }
 
         clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &next_arrival_time[1], NULL);
         long int next_arrival_nanoseconds = next_arrival_time[1].tv_nsec + periods[1];
@@ -302,23 +431,63 @@ void *task2(void *ptr)
     }
 }
 
-void task3_code()
+int task3_code()
 {
-    // print the id of the current task
-    printf(" 3[ ");
-    fflush(stdout);
+    // strings to write
+    const char *str_i;
+    const char *str_f;
+
+    // strings length
+    int len_i, len_f;
+
+    // file descriptor
+    int fd;
+
+    // open the special file
+    if ((fd = open("/dev/my", O_RDWR)) == -1)
+    {
+        perror("open failed");
+        return -1;
+    }
+    // write on the special file the id of the current task
+    str_i = " 3[ ";
+    len_i = strlen(str_i) + 1;
+    if (write(fd, str_i, len_i) != len_i)
+    {
+        perror("write failed");
+        return -1;
+    }
+    // close the special file
+    close(fd);
+
     int i, j;
     double uno;
-    for (i = 0; i < OUTERLOOP*6; i++)
+    for (i = 0; i < OUTERLOOP * 4; i++)
     {
         for (j = 0; j < INNERLOOP; j++)
         {
             uno = rand() * rand() % 10;
         }
     }
-    // print the id of the current task
-    printf(" ]3 ");
-    fflush(stdout);
+
+    // open the special file
+    if ((fd = open("/dev/my", O_RDWR)) == -1)
+    {
+        perror("open failed");
+        return -1;
+    }
+    // write on the special file the id of the current task
+    str_f = " ]3 ";
+    len_f = strlen(str_f) + 1;
+    if (write(fd, str_f, len_f) != len_f)
+    {
+        perror("write failed");
+        return -1;
+    }
+    // close the special file
+    close(fd);
+
+    return 0;
 }
 
 void *task3(void *ptr)
@@ -333,7 +502,12 @@ void *task3(void *ptr)
     for (i = 0; i < 40; i++)
     {
         // see task 1
-        task3_code();
+        if (task3_code())
+        {
+            printf("task3_code failed\n");
+            fflush(stdout);
+            return NULL;
+        }
 
         clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &next_arrival_time[2], NULL);
         long int next_arrival_nanoseconds = next_arrival_time[2].tv_nsec + periods[2];
@@ -342,10 +516,35 @@ void *task3(void *ptr)
     }
 }
 
-void task4_code()
+int task4_code()
 {
-    printf(" 4[ ");
-    fflush(stdout);
+    // strings to write
+    const char *str_i;
+    const char *str_f;
+
+    // strings length
+    int len_i, len_f;
+
+    // file descriptor
+    int fd;
+
+    // open the special file
+    if ((fd = open("/dev/my", O_RDWR)) == -1)
+    {
+        perror("open failed");
+        return -1;
+    }
+    // write on the special file the id of the current task
+    str_i = " 4[ ";
+    len_i = strlen(str_i) + 1;
+    if (write(fd, str_i, len_i) != len_i)
+    {
+        perror("write failed");
+        return -1;
+    }
+    // close the special file
+    close(fd);
+
     double uno;
     for (int i = 0; i < OUTERLOOP; i++)
     {
@@ -354,9 +553,25 @@ void task4_code()
             uno = rand() * rand();
         }
     }
-    printf(" ]4 ");
-    fflush(stdout);
-    fflush(stdout);
+
+    // open the special file
+    if ((fd = open("/dev/my", O_RDWR)) == -1)
+    {
+        perror("open failed");
+        return -1;
+    }
+    // write on the special file the id of the current task
+    str_f = " ]4 ";
+    len_f = strlen(str_f) + 1;
+    if (write(fd, str_f, len_f) != len_f)
+    {
+        perror("write failed");
+        return -1;
+    }
+    // close the special file
+    close(fd);
+
+    return 0;
 }
 
 void *task4(void *ptr)
@@ -373,6 +588,11 @@ void *task4(void *ptr)
         // wait for the proper condition to be signaled
         pthread_cond_wait(&cond_task_4, &mutex_task_4);
         // execute the task code
-        task4_code();
+        if (task4_code())
+        {
+            printf("task4_code failed\n");
+            fflush(stdout);
+            return NULL;
+        }
     }
 }

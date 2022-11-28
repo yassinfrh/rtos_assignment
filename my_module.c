@@ -80,6 +80,9 @@ ssize_t my_write(struct file *filp, const char __user *buf, size_t count,
         goto out;
     }
 
+    // print in the kernel log the string written
+    printk(KERN_INFO "my_write: %s", dev->data);
+
     // update retval
     retval = count;
 
@@ -162,8 +165,6 @@ int my_init_module(void)
     else
         printk(KERN_NOTICE "my Added major: %d minor: %d", my_major, my_minor);
 
-    //	initialize flag
-    flag = 0;
     return 0;
 }
 module_init(my_init_module);
